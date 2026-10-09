@@ -95,6 +95,7 @@ h1{text-align:center;margin:10px 0 0;font-size:26px;letter-spacing:1px}
 <script>
 // Isi dua nilai ini dari Supabase Dashboard > Project Settings > API.
 // Gunakan publishable key (atau anon key lama), JANGAN gunakan service_role/secret key.
+// Harus URL dasar proyek, tanpa /rest/v1 atau /realtime/v1.
 const SUPABASE_URL = 'https://ridlgahoavhguwgyrkip.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_6FdItz1UEkNqvjlscuGk9g_jBb6ada_';
 const $=s=>document.querySelector(s);
@@ -311,7 +312,7 @@ function render(t){const dpr=devicePixelRatio||1,w=innerWidth,h=innerHeight;
   ...actors().map(p=>({y:p.y,f:()=>pdraw(p,t)}))].sort((a,b)=>a.y-b.y);
  L.forEach(i=>i.f());actors().forEach(p=>over(p,t));g.restore();
  if(joy&&joy.m){g.setTransform(dpr,0,0,dpr,0,0);g.globalAlpha=.4;g.fillStyle='#fff';[[joy.ox,joy.oy,45],[joy.cx,joy.cy,18]].forEach(([x,y,q])=>{g.beginPath();g.arc(x,y,q,0,7);g.fill()});g.globalAlpha=1}}
-function send(){const t=ci.value.trim().slice(0,60);ci.value='';if(!t)return;say(me,t);if(channel)broadcast('chat',{name:pn,text:t,id:CLIENT_ID+'-'+(++sq)});else if(!rem.size)setTimeout(()=>{const b=bots[r(bots.length)];b&&say(b,REP[r(REP.length)])},1000+Math.random()*1200)}
+function send(){const t=ci.value.trim().slice(0,60);ci.value='';if(!t)return;say(me,t);if(channelReady)broadcast('chat',{name:pn,text:t,clientId:CLIENT_ID,id:CLIENT_ID+'-'+(++sq)});else if(!rem.size)setTimeout(()=>{const b=bots[r(bots.length)];b&&say(b,REP[r(REP.length)])},1000+Math.random()*1200)}
 $('#cs').onclick=send;ci.onkeydown=e=>{if(e.key=='Enter'){send();ci.blur()}else if(e.key=='Escape')ci.blur();e.stopPropagation()};
 addEventListener('keydown',e=>{if(G.hidden||document.activeElement==ci)return;if(e.key=='Enter'){ci.focus();e.preventDefault();return}
  keys[e.key.length==1?e.key.toLowerCase():e.key]=1;if(e.key.startsWith('Arrow'))e.preventDefault()});
@@ -319,7 +320,7 @@ addEventListener('keyup',e=>{delete keys[e.key.length==1?e.key.toLowerCase():e.k
 cv.onpointerdown=e=>{joy={ox:e.clientX,oy:e.clientY,cx:e.clientX,cy:e.clientY,dx:0,dy:0,m:0};cv.setPointerCapture(e.pointerId);ci.blur();$('#emp').hidden=true};
 cv.onpointermove=e=>{if(!joy)return;const x=e.clientX-joy.ox,y=e.clientY-joy.oy,l=Math.hypot(x,y),c=Math.min(1.7,l/45);joy.m=l>10;joy.dx=l?x/l*c:0;joy.dy=l?y/l*c:0;joy.cx=e.clientX;joy.cy=e.clientY};
 cv.onpointerup=cv.onpointercancel=()=>joy=null;
-EM.forEach(e=>{const b=document.createElement('button');b.className='gb';b.textContent=e;b.onclick=()=>{emote(me,e);if(channel)broadcast('emote',{name:pn,emoji:e,client:CLIENT_ID,id:++eq});$('#emp').hidden=true};$('#emp').append(b)});
+EM.forEach(e=>{const b=document.createElement('button');b.className='gb';b.textContent=e;b.onclick=()=>{emote(me,e);if(channelReady)broadcast('emote',{name:pn,emoji:e,client:CLIENT_ID,id:++eq});$('#emp').hidden=true};$('#emp').append(b)});
 $('#em').onclick=()=>$('#emp').hidden=!$('#emp').hidden;
 tabs.forEach((b,i)=>b.onclick=()=>setMap(i));$('#gx').onclick=()=>{G.hidden=true;keys={};leave()};
 $('#next').onclick=()=>{const k=$('#card'),bg=['#9be3b0','#ffd9a0','#ffb38a'],ic=['🏫','🍜','🏀'];
@@ -328,12 +329,19 @@ $('#next').onclick=()=>{const k=$('#card'),bg=['#9be3b0','#ffd9a0','#ffb38a'],ic
  k.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{snap={...cfg};pn=$('#nm').value.trim()||'Pemain';$('#md').hidden=true;G.hidden=false;HS.innerHTML='';setMap(+b.dataset.i);log('','Tip: tahan Shift (atau tarik joystick jauh) untuk berlari.',1)})};
 
 const rem=new Map(),actors=()=>[me,...rem.values(),...(rem.size?[]:bots)];
-let supabaseClient=null,channel=null,sq=0,eq=0,pt=0,lq='',lastChatAt=0;
+let supabaseClient=null,channel=null,channelReady=false,sq=0,eq=0,pt=0,lq='',lastChatAt=0;
 const CLIENT_ID=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'p-'+Math.random().toString(36).slice(2)+Date.now();
 const cl=(v,n)=>Math.max(0,Math.min(n-1,Number(v)||0));
 const cleanCfg=c=>({g:c&&c.g==='f'?'f':'m',skin:cl(c&&c.skin,6),hair:cl(c&&c.hair,10),hc:cl(c&&c.hc,10),top:cl(c&&c.top,10),tc:cl(c&&c.tc,10),bot:cl(c&&c.bot,10),bc:cl(c&&c.bc,8),shoe:cl(c&&c.shoe,8),sc:cl(c&&c.sc,8),acc:cl(c&&c.acc,10),ac:cl(c&&c.ac,10)});
 function playerPayload(){return {id:CLIENT_ID,n:String(pn||'Pemain').slice(0,14),c:cleanCfg(snap||cfg),x:Math.round(me.x),y:Math.round(me.y),vx:Math.round(me.vx||0),vy:Math.round(me.vy||0)}}
-function broadcast(event,payload){if(!channel)return;channel.send({type:'broadcast',event,payload}).catch(()=>{})}
+function broadcast(event,payload){
+  // Jangan kirim sebelum Realtime channel benar-benar tersambung.
+  // Jika belum SUBSCRIBED, supabase-js dapat mencoba fallback REST.
+  if(!channel || !channelReady) return;
+  channel.send({type:'broadcast',event,payload}).then(status=>{
+    if(status && status!=='ok') log('','Pengiriman Realtime gagal: '+status,1);
+  }).catch(err=>log('','Gagal mengirim Realtime: '+(err?.message||err),1));
+}
 function broadcastState(){if(channel)broadcast('state',playerPayload())}
 function updateRemote(peer,v){if(!v||v.id===CLIENT_ID||!v.c)return;let o=rem.get(peer);
  if(!o){o=mk(String(v.n||'Pemain').slice(0,14),cleanCfg(v.c),0);o.x=Number(v.x)||480;o.y=Number(v.y)||300;o.tx=o.x;o.ty=o.y;o.rvx=0;o.rvy=0;o.ms=0;o.es=0;rem.set(peer,o);log('',o.name+' ada di sini',1)}
@@ -342,7 +350,7 @@ function updateRemote(peer,v){if(!v||v.id===CLIENT_ID||!v.c)return;let o=rem.get
 function syncPresence(){if(!channel)return;const state=channel.presenceState(),ids=new Set();
  Object.entries(state).forEach(([peer,list])=>{if(peer===CLIENT_ID)return;(list||[]).forEach(v=>{if(v&&v.id!==CLIENT_ID){ids.add(peer);updateRemote(peer,v)}})});
  [...rem].forEach(([peer,o])=>{if(!ids.has(peer)){log('',o.name+' keluar',1);rem.delete(peer)}})}
-function leave(){const old=channel;channel=null;rem.clear();lq='';if(old){try{old.untrack();supabaseClient&&supabaseClient.removeChannel(old)}catch(e){}}}
+function leave(){const old=channel;channel=null;channelReady=false;rem.clear();lq='';if(old){try{old.untrack();supabaseClient&&supabaseClient.removeChannel(old)}catch(e){}}}
 async function joinRoom(i){leave();
  if(!supabaseClient){log('','Supabase belum dikonfigurasi. Isi URL dan key di bagian atas file HTML.',1);return}
  const room='map-'+i;
@@ -351,9 +359,21 @@ async function joinRoom(i){leave();
   ch.on('presence',{event:'join'},()=>syncPresence());
   ch.on('presence',{event:'leave'},()=>syncPresence());
   ch.on('broadcast',{event:'state'},({payload})=>{if(payload&&payload.id!==CLIENT_ID)updateRemote(payload.id,payload)});
-  ch.on('broadcast',{event:'chat'},({payload})=>{if(!payload||payload.id===CLIENT_ID+'-'+sq)return;const o={name:String(payload.name||'Pemain').slice(0,14)};say(o,String(payload.text||'').slice(0,60))});
+  ch.on('broadcast',{event:'chat'},({payload})=>{if(!payload||payload.clientId===CLIENT_ID)return;const o={name:String(payload.name||'Pemain').slice(0,14)};say(o,String(payload.text||'').slice(0,60))});
   ch.on('broadcast',{event:'emote'},({payload})=>{if(!payload||payload.client===CLIENT_ID)return;let o=rem.get(payload.client)||[...rem.values()].find(x=>x.name===payload.name);if(o)emote(o,String(payload.emoji||'').slice(0,4));else{const temp={name:String(payload.name||'Pemain')};log(temp.name,String(payload.emoji||'').slice(0,4))}});
-  ch.subscribe(async status=>{if(status==='SUBSCRIBED'&&channel===ch&&!G.hidden&&mi===i){await ch.track(playerPayload());broadcastState();log('','Terhubung ke Supabase. Pemain asli di map ini akan muncul.',1)}else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){log('','Koneksi multiplayer gagal. Periksa URL/key dan pengaturan Supabase.',1)}});
+  ch.subscribe(async status=>{
+   if(channel!==ch) return;
+   if(status==='SUBSCRIBED'&&!G.hidden&&mi===i){
+    channelReady=true;
+    try{const presenceStatus=await ch.track(playerPayload());if(presenceStatus && presenceStatus!=='ok')log('','Channel tersambung, tetapi presence gagal: '+presenceStatus,1);}
+    catch(err){log('','Gagal mendaftarkan pemain: '+(err?.message||err),1)}
+    broadcastState();
+    log('','Terhubung ke Supabase Realtime. Map: '+room,1);
+   } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+    channelReady=false;
+    log('','Koneksi Realtime gagal ('+status+'). Periksa Project URL, publishable/anon key, dan pengaturan Realtime.',1);
+   }
+  });
  }catch(e){channel=null;log('','Gagal menghubungkan multiplayer. Periksa konfigurasi Supabase.',1)}}
 if(window.supabase&&SUPABASE_URL.startsWith('https://')&&!SUPABASE_KEY.includes('PASTE_')){try{supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY)}catch(e){supabaseClient=null}}
 (function lp(t){requestAnimationFrame(lp);if(G.hidden){last=0;return}now=t;const dt=Math.min(.05,(t-(last||t))/1e3);last=t;update(dt);render(t)})(0);
